@@ -1,0 +1,6 @@
+{
+  "name": "Aero Care Home CRM",
+  "description": "Comprehensive CRM and care management suite for Aero Care Home featuring digital MAR, care logs, incident reporting, and resident profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
