@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, UserPlus, HeartPulse, CheckCircle2 } from 'lucide-react';
 import { Resident, RiskLevel } from '../types';
+import { uid } from '../services/id';
 
 interface NewResidentModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export const NewResidentModal: React.FC<NewResidentModalProps> = ({
     if (!name || !room) return;
 
     const newRes: Resident = {
-      id: `res-${Date.now()}`,
+      id: uid('res'),
       name: name.trim(),
       preferredName: preferredName.trim() || undefined,
       room: room.trim(),
@@ -74,6 +75,7 @@ export const NewResidentModal: React.FC<NewResidentModalProps> = ({
       primaryCarer: 'Sarah Jenkins',
       fluidTargetMl: 1500,
       todayFluidIntakeMl: 0,
+      fluidDate: new Date().toISOString().slice(0, 10),
       keyNotes: keyNotes.trim() || 'Newly admitted resident. Complete baseline admission assessments.'
     };
 

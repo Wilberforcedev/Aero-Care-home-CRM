@@ -17,7 +17,7 @@ interface MARModuleProps {
   medications: Medication[];
   residents: Resident[];
   currentUser: User;
-  onUpdateMedicationStatus: (medId: string, status: 'Given' | 'Refused' | 'Omitted') => void;
+  onUpdateMedicationStatus: (medId: string, status: 'Given' | 'Refused' | 'Omitted', secondSignature?: string) => void;
   onSelectResident: (resident: Resident) => void;
 }
 
@@ -54,7 +54,12 @@ export const MARModule: React.FC<MARModuleProps> = ({
 
   const handleConfirmSign = () => {
     if (!signingMed) return;
-    onUpdateMedicationStatus(signingMed.id, signStatus);
+    if (signingMed.controlledDrug && !witnessName.trim()) return;
+    onUpdateMedicationStatus(
+      signingMed.id,
+      signStatus,
+      signingMed.controlledDrug ? witnessName.trim() : undefined
+    );
     setSigningMed(null);
   };
 
@@ -233,7 +238,8 @@ export const MARModule: React.FC<MARModuleProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmSign}
-                className="px-4 py-2 bg-[#042416] text-white rounded-xl font-bold text-xs shadow-md"
+                disabled={Boolean(signingMed.controlledDrug && !witnessName.trim())}
+                className="px-4 py-2 bg-[#042416] text-white rounded-xl font-bold text-xs shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Confirm MAR Sign-off
               </button>

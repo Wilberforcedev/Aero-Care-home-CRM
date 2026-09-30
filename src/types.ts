@@ -61,6 +61,8 @@ export interface Resident {
   primaryCarer: string;
   fluidTargetMl: number;
   todayFluidIntakeMl: number;
+  /** ISO date (YYYY-MM-DD) that todayFluidIntakeMl was last reset. Used to roll intake over at midnight. */
+  fluidDate?: string;
 }
 
 export interface User {
@@ -96,6 +98,8 @@ export interface MARRecord {
   administeredTime?: string;
   status: 'Given' | 'Refused' | 'Omitted' | 'Pending';
   administeredBy?: string;
+  /** Required second signature for Controlled Drug (Schedule 2) administrations. */
+  secondSignature?: string;
   notes?: string;
 }
 
@@ -123,6 +127,9 @@ export interface VitalsRecord {
   pulse?: number;
   tempC?: number;
   oxygenSat?: number;
+  respirationRate?: number;
+  oxygenSupplement?: boolean;
+  avpu?: 'A' | 'V' | 'P' | 'U';
   bloodGlucose?: number;
   weightKg?: number;
   staffName: string;

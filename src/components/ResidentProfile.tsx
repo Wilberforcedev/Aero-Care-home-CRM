@@ -39,6 +39,7 @@ import {
   CareLogType,
   MoodType
 } from '../types';
+import { computeNews2 } from '../services/clinical';
 
 export interface ResidentProfileProps {
   resident: Resident;
@@ -63,6 +64,7 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
   isOpen,
   onClose,
   medications,
+  marRecords,
   careLogs,
   vitals,
   incidents,
@@ -100,6 +102,7 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
   const residentLogs = careLogs.filter(l => l.residentId === resident.id);
   const residentVitals = vitals.filter(v => v.residentId === resident.id);
   const residentIncidents = incidents.filter(i => i.residentId === resident.id);
+  const residentMarRecords = (marRecords || []).filter(r => r.residentId === resident.id);
 
   // Age calculation
   const calculateAge = (dobString: string) => {
@@ -790,10 +793,63 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
                   ))}
                 </div>
               )}
+
+              {/* eMAR Administration History */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600 mb-3">
+                  eMAR Administration History ({residentMarRecords.length})
+                </h3>
+                {residentMarRecords.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-4 text-center">
+                    No administrations signed off yet for this resident.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-gray-50 border-b text-gray-600">
+                        <tr>
+                          <th className="p-2.5">Date/Time</th>
+                          <th className="p-2.5">Medication</th>
+                          <th className="p-2.5">Outcome</th>
+                          <th className="p-2.5">Administered By</th>
+                          <th className="p-2.5">Second Signature</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {residentMarRecords.map(rec => {
+                          const med = medications.find(m => m.id === rec.medicationId);
+                          return (
+                            <tr key={rec.id} className="hover:bg-gray-50">
+                              <td className="p-2.5 font-bold text-gray-900 whitespace-nowrap">
+                                {rec.administeredTime
+                                  ? new Date(rec.administeredTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                                  : '-'}
+                              </td>
+                              <td className="p-2.5 font-semibold text-gray-800">
+                                {med ? `${med.name} (${med.dosage})` : rec.medicationId}
+                              </td>
+                              <td className="p-2.5">
+                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-lg border ${
+                                  rec.status === 'Given' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                  rec.status === 'Refused' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                  rec.status === 'Omitted' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                                  'bg-gray-100 text-gray-700 border-gray-200'
+                                }`}>
+                                  {rec.status}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-gray-600">{rec.administeredBy || '-'}</td>
+                              <td className="p-2.5 text-gray-600">{rec.secondSignature || '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
-
-          {/* 6. VITALS TAB */}
           {activeTab === 'vitals' && (
             <div className="space-y-4">
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
@@ -820,11 +876,19 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
                           <th className="p-3">Temp (°C)</th>
                           <th className="p-3">SpO2 (%)</th>
                           <th className="p-3">Glucose</th>
+                          <th className="p-3">NEWS2</th>
                           <th className="p-3">Recorded By</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {residentVitals.map(v => (
+                        {residentVitals.map(v => {
+                          const news = computeNews2(v);
+                          const newsClass =
+                            news.level === 'High' ? 'bg-rose-100 text-rose-800 border-rose-200' :
+                            news.level === 'Low-medium' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                            news.level === 'Low' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' :
+                            'bg-emerald-50 text-emerald-800 border-emerald-200';
+                          return (
                           <tr key={v.id} className="hover:bg-gray-50">
                             <td className="p-3 font-bold text-gray-900">
                               {new Date(v.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
@@ -834,9 +898,18 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
                             <td className="p-3 font-semibold text-gray-800">{v.tempC ? `${v.tempC} °C` : '-'}</td>
                             <td className="p-3 font-semibold text-gray-800">{v.oxygenSat ? `${v.oxygenSat}%` : '-'}</td>
                             <td className="p-3 font-semibold text-gray-800">{v.bloodGlucose ? `${v.bloodGlucose} mmol` : '-'}</td>
+                            <td className="p-3">
+                              <span
+                                className={`px-2 py-0.5 text-[10px] font-black rounded-lg border ${newsClass}`}
+                                title={news.triggers.length ? news.triggers.map(t => `${t.parameter} ${t.value} (+${t.points})`).join(', ') : 'No parameters scored above normal'}
+                              >
+                                {news.score} · {news.level}
+                              </span>
+                            </td>
                             <td className="p-3 text-gray-500">{v.staffName}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

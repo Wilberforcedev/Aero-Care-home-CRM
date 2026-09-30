@@ -1,4 +1,4 @@
-import { Resident, Medication, CareLog, VitalsRecord, Incident, Shift } from '../types';
+import { Resident, Medication, CareLog, VitalsRecord, Incident, Shift, MARRecord } from '../types';
 import { MOCK_RESIDENTS, MOCK_MEDICATIONS, MOCK_CARE_LOGS, MOCK_VITALS, MOCK_INCIDENTS, MOCK_SHIFTS } from '../data/mockData';
 
 const KEYS = {
@@ -7,7 +7,8 @@ const KEYS = {
   CARE_LOGS: 'aero_crm_care_logs_v2',
   VITALS: 'aero_crm_vitals_v2',
   INCIDENTS: 'aero_crm_incidents_v2',
-  SHIFTS: 'aero_crm_shifts_v2'
+  SHIFTS: 'aero_crm_shifts_v2',
+  MAR_RECORDS: 'aero_crm_mar_records_v2'
 };
 
 export const storageService = {
@@ -107,6 +108,22 @@ export const storageService = {
     }
   },
 
+  getMarRecords(): MARRecord[] {
+    try {
+      const data = localStorage.getItem(KEYS.MAR_RECORDS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+  saveMarRecords(records: MARRecord[]) {
+    try {
+      localStorage.setItem(KEYS.MAR_RECORDS, JSON.stringify(records));
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
   resetDefaults() {
     localStorage.removeItem(KEYS.RESIDENTS);
     localStorage.removeItem(KEYS.MEDICATIONS);
@@ -114,5 +131,6 @@ export const storageService = {
     localStorage.removeItem(KEYS.VITALS);
     localStorage.removeItem(KEYS.INCIDENTS);
     localStorage.removeItem(KEYS.SHIFTS);
+    localStorage.removeItem(KEYS.MAR_RECORDS);
   }
 };

@@ -313,7 +313,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           Need assistance? <a href="#" onClick={(e) => { e.preventDefault(); alert('Please reach out to Shift Administrator at shift-admin@aerocare.com'); }} className="font-bold hover:underline text-emerald-300">Contact IT Desk</a>
         </p>
         <p className="text-white/50">
-          © {new Date().getFullYear()} Aero Care Home CRM • Registered NHS Compliant Platform
+          © {new Date().getFullYear()} Aero Care Home CRM • Demo prototype — not for clinical use
         </p>
       </div>
     </div>

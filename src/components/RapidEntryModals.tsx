@@ -149,6 +149,9 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
   const [pulse, setPulse] = useState('72');
   const [tempC, setTempC] = useState('36.6');
   const [oxygenSat, setOxygenSat] = useState('98');
+  const [respirationRate, setRespirationRate] = useState('16');
+  const [oxygenSupplement, setOxygenSupplement] = useState(false);
+  const [avpu, setAvpu] = useState<'A' | 'V' | 'P' | 'U'>('A');
   const [bloodGlucose, setBloodGlucose] = useState('');
 
   if (!isOpen) return null;
@@ -166,6 +169,9 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
       pulse: pulse ? Number(pulse) : undefined,
       tempC: tempC ? Number(tempC) : undefined,
       oxygenSat: oxygenSat ? Number(oxygenSat) : undefined,
+      respirationRate: respirationRate ? Number(respirationRate) : undefined,
+      oxygenSupplement,
+      avpu,
       bloodGlucose: bloodGlucose ? Number(bloodGlucose) : undefined,
       staffName: currentUser.name
     });
@@ -245,6 +251,48 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
                 placeholder="98"
                 className="w-full p-2 bg-gray-50 border rounded-xl font-bold text-center"
               />
+            </div>
+
+            <div>
+              <label className="block text-gray-600 font-bold mb-1">Respiration Rate (/min)</label>
+              <input
+                type="number"
+                value={respirationRate}
+                onChange={(e) => setRespirationRate(e.target.value)}
+                placeholder="16"
+                className="w-full p-2 bg-gray-50 border rounded-xl font-bold text-center"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-gray-600 font-bold mb-1">Consciousness (AVPU)</label>
+              <select
+                value={avpu}
+                onChange={(e) => setAvpu(e.target.value as 'A' | 'V' | 'P' | 'U')}
+                className="w-full p-2 bg-gray-50 border rounded-xl font-semibold text-gray-800"
+              >
+                <option value="A">A — Alert</option>
+                <option value="V">V — Voice</option>
+                <option value="P">P — Pain</option>
+                <option value="U">U — Unresponsive</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-gray-600 font-bold mb-1">Oxygen Delivery</label>
+              <button
+                type="button"
+                onClick={() => setOxygenSupplement(o => !o)}
+                className={`w-full p-2 rounded-xl font-bold border transition-all ${
+                  oxygenSupplement
+                    ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-gray-50 text-gray-700 border-gray-200'
+                }`}
+              >
+                {oxygenSupplement ? 'On supplemental O2' : 'Room air'}
+              </button>
             </div>
           </div>
 

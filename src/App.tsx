@@ -13,6 +13,8 @@ import { FluidModal, VitalsModal } from './components/RapidEntryModals';
 import { NewResidentModal } from './components/NewResidentModal';
 import { SettingsModal } from './components/SettingsModal';
 import { storageService } from './services/storageService';
+import { uid } from './services/id';
+import { news2Summary } from './services/clinical';
 import { CURRENT_USER } from './data/mockData';
 import { 
   Resident, 
@@ -21,20 +23,46 @@ import {
   VitalsRecord, 
   Incident, 
   Shift, 
-  User 
+  User,
+  MARRecord
 } from './types';
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Roll over any resident whose fluid tally belongs to a previous day. */
+function rolloverFluids(list: Resident[]): Resident[] {
+  const today = todayISO();
+  let changed = false;
+  const next = list.map(r => {
+    if (r.fluidDate === undefined) {
+      // Legacy/seed record with no date: adopt its existing tally as today's.
+      changed = true;
+      return { ...r, fluidDate: today };
+    }
+    if (r.fluidDate !== today) {
+      // New day: reset the running intake.
+      changed = true;
+      return { ...r, todayFluidIntakeMl: 0, fluidDate: today };
+    }
+    return r;
+  });
+  return changed ? next : list;
+}
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(CURRENT_USER);
   const [activeTab, setActiveTab] = useState<string>('residents');
 
   // Application Data States (backed by storageService)
-  const [residents, setResidents] = useState<Resident[]>(() => storageService.getResidents());
+  const [residents, setResidents] = useState<Resident[]>(() => rolloverFluids(storageService.getResidents()));
   const [medications, setMedications] = useState<Medication[]>(() => storageService.getMedications());
   const [careLogs, setCareLogs] = useState<CareLog[]>(() => storageService.getCareLogs());
   const [vitals, setVitals] = useState<VitalsRecord[]>(() => storageService.getVitals());
   const [incidents, setIncidents] = useState<Incident[]>(() => storageService.getIncidents());
   const [shifts, setShifts] = useState<Shift[]>(() => storageService.getShifts());
+  const [marRecords, setMarRecords] = useState<MARRecord[]>(() => storageService.getMarRecords());
 
   // Slide-in / Overlay Resident Profile State
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
@@ -76,6 +104,22 @@ export function App() {
     storageService.saveShifts(shifts);
   }, [shifts]);
 
+  useEffect(() => {
+    storageService.saveMarRecords(marRecords);
+  }, [marRecords]);
+
+  // Roll over daily fluid tallies at midnight and when the tab regains focus.
+  useEffect(() => {
+    const applyRollover = () => setResidents(prev => rolloverFluids(prev));
+    applyRollover();
+    const interval = window.setInterval(applyRollover, 60_000);
+    document.addEventListener('visibilitychange', applyRollover);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', applyRollover);
+    };
+  }, []);
+
   // If resident was updated (e.g. fluid added), keep selectedResident fresh
   useEffect(() => {
     if (selectedResident) {
@@ -98,17 +142,20 @@ export function App() {
   const handleAddCareLog = (newLogData: Omit<CareLog, 'id'>) => {
     const newLog: CareLog = {
       ...newLogData,
-      id: `log-${Date.now()}`
+      id: uid('log')
     };
     setCareLogs(prev => [newLog, ...prev]);
 
     // If fluid was recorded in the care log, update resident fluid total
     if (newLogData.fluidAmountMl && newLogData.fluidAmountMl > 0) {
+      const today = todayISO();
       setResidents(prev => prev.map(r => {
         if (r.id === newLogData.residentId) {
+          const baseline = r.fluidDate === today ? r.todayFluidIntakeMl : 0;
           return {
             ...r,
-            todayFluidIntakeMl: r.todayFluidIntakeMl + newLogData.fluidAmountMl!
+            todayFluidIntakeMl: baseline + newLogData.fluidAmountMl!,
+            fluidDate: today
           };
         }
         return r;
@@ -120,12 +167,15 @@ export function App() {
     const targetRes = residents.find(r => r.id === residentId);
     if (!targetRes) return;
 
+    const today = todayISO();
     // Update resident intake
     setResidents(prev => prev.map(r => {
       if (r.id === residentId) {
+        const baseline = r.fluidDate === today ? r.todayFluidIntakeMl : 0;
         return {
           ...r,
-          todayFluidIntakeMl: r.todayFluidIntakeMl + amountMl
+          todayFluidIntakeMl: baseline + amountMl,
+          fluidDate: today
         };
       }
       return r;
@@ -133,7 +183,7 @@ export function App() {
 
     // Add corresponding care log
     const log: CareLog = {
-      id: `log-${Date.now()}`,
+      id: uid('log'),
       residentId,
       residentName: targetRes.name,
       room: targetRes.room,
@@ -151,67 +201,30 @@ export function App() {
   const handleVitalsSubmit = (newVitals: Omit<VitalsRecord, 'id'>) => {
     const record: VitalsRecord = {
       ...newVitals,
-      id: `vit-${Date.now()}`
+      id: uid('vit')
     };
     setVitals(prev => [record, ...prev]);
 
     // Also add a care log note for audit
     const res = residents.find(r => r.id === newVitals.residentId);
     if (res) {
-      const summaryParts = [];
-      if (newVitals.bpSystolic) summaryParts.push(`BP ${newVitals.bpSystolic}/${newVitals.bpDiastolic}`);
-      if (newVitals.pulse) summaryParts.push(`Pulse ${newVitals.pulse} bpm`);
-      if (newVitals.tempC) summaryParts.push(`Temp ${newVitals.tempC}°C`);
-      if (newVitals.oxygenSat) summaryParts.push(`SpO2 ${newVitals.oxygenSat}%`);
-      if (newVitals.bloodGlucose) summaryParts.push(`Glucose ${newVitals.bloodGlucose} mmol`);
+      const obsParts = [];
+      if (newVitals.bpSystolic) obsParts.push(`BP ${newVitals.bpSystolic}/${newVitals.bpDiastolic}`);
+      if (newVitals.pulse) obsParts.push(`Pulse ${newVitals.pulse} bpm`);
+      if (newVitals.respirationRate) obsParts.push(`Resp ${newVitals.respirationRate}/min`);
+      if (newVitals.tempC) obsParts.push(`Temp ${newVitals.tempC}°C`);
+      if (newVitals.oxygenSat) obsParts.push(`SpO2 ${newVitals.oxygenSat}%${newVitals.oxygenSupplement ? ' on O2' : ' (air)'}`);
+      if (newVitals.avpu) obsParts.push(`AVPU ${newVitals.avpu}`);
+      if (newVitals.bloodGlucose) obsParts.push(`Glucose ${newVitals.bloodGlucose} mmol`);
 
       const log: CareLog = {
-        id: `log-${Date.now()}`,
+        id: uid('log'),
         residentId: res.id,
         residentName: res.name,
         room: res.room,
         timestamp: new Date().toISOString(),
         type: 'General Note',
-        content: `Vital signs recorded: ${summaryParts.join(', ')}. All within baseline parameters.`,
-        staffName: currentUser?.name || 'Staff',
-        staffRole: currentUser?.role || 'Caregiver',
-        mood: 'Calm & Content'
-      };
-      setCareLogs(prev => [log, ...prev]);
-    }
-  };
-
-  const handleUpdateMedicationStatus = (medId: string, status: 'Given' | 'Refused' | 'Omitted') => {
-    setMedications(prev => prev.map(m => {
-      if (m.id === medId) {
-        return { ...m, status };
-      }
-      return m;
-    }));
-
-    // Check if resident still has meds due
-    const med = medications.find(m => m.id === medId);
-    if (med) {
-      const remainingDue = medications.filter(m => m.residentId === med.residentId && m.id !== medId && m.status === 'Due').length;
-      setResidents(prev => prev.map(r => {
-        if (r.id === med.residentId) {
-          return {
-            ...r,
-            medsStatus: remainingDue === 0 ? 'Completed' : 'Due Now'
-          };
-        }
-        return r;
-      }));
-
-      // Add Care Log entry for MAR sign-off
-      const log: CareLog = {
-        id: `log-${Date.now()}`,
-        residentId: med.residentId,
-        residentName: med.residentName,
-        room: med.room,
-        timestamp: new Date().toISOString(),
-        type: 'General Note',
-        content: `eMAR: ${med.name} (${med.dosage}) administered and signed off as "${status}".`,
+        content: `Vital signs recorded: ${obsParts.join(', ')}. ${news2Summary(newVitals)}`,
         staffName: currentUser?.name || 'Staff',
         staffRole: currentUser?.role || 'Caregiver'
       };
@@ -219,10 +232,76 @@ export function App() {
     }
   };
 
+  const handleUpdateMedicationStatus = (
+    medId: string,
+    status: 'Given' | 'Refused' | 'Omitted',
+    secondSignature?: string
+  ) => {
+    const med = medications.find(m => m.id === medId);
+    if (!med) return;
+
+    // Flip the medication status and, for a administered dose, decrement stock.
+    setMedications(prev => prev.map(m => {
+      if (m.id === medId) {
+        const stockRemaining = status === 'Given'
+          ? Math.max(0, m.stockRemaining - 1)
+          : m.stockRemaining;
+        return { ...m, status, stockRemaining };
+      }
+      return m;
+    }));
+
+    // Persist a real eMAR administration record (who / when / outcome / witness).
+    const now = new Date().toISOString();
+    const marRecord: MARRecord = {
+      id: uid('mar'),
+      medicationId: med.id,
+      residentId: med.residentId,
+      scheduledTime: med.timeSlot,
+      administeredTime: now,
+      status,
+      administeredBy: currentUser?.name || 'Staff',
+      secondSignature,
+      notes: status === 'Given'
+        ? undefined
+        : `Signed off as ${status}.`
+    };
+    setMarRecords(prev => [marRecord, ...prev]);
+
+    // Recompute resident meds-due status from the post-update list.
+    const remainingDue = medications.filter(
+      m => m.residentId === med.residentId && m.id !== medId && m.status === 'Due'
+    ).length;
+    setResidents(prev => prev.map(r => {
+      if (r.id === med.residentId) {
+        return {
+          ...r,
+          medsStatus: remainingDue === 0 ? 'Completed' : 'Due Now'
+        };
+      }
+      return r;
+    }));
+
+    // Add Care Log entry for MAR sign-off.
+    const witnessText = secondSignature ? ` Second signatory: ${secondSignature}.` : '';
+    const log: CareLog = {
+      id: uid('log'),
+      residentId: med.residentId,
+      residentName: med.residentName,
+      room: med.room,
+      timestamp: now,
+      type: 'General Note',
+      content: `eMAR: ${med.name} (${med.dosage}) signed off as "${status}" by ${currentUser?.name || 'Staff'}.${witnessText}`,
+      staffName: currentUser?.name || 'Staff',
+      staffRole: currentUser?.role || 'Caregiver'
+    };
+    setCareLogs(prev => [log, ...prev]);
+  };
+
   const handleAddIncident = (newIncData: Omit<Incident, 'id'>) => {
     const inc: Incident = {
       ...newIncData,
-      id: `inc-${Date.now()}`
+      id: uid('inc')
     };
     setIncidents(prev => [inc, ...prev]);
 
@@ -246,12 +325,13 @@ export function App() {
 
   const handleResetData = () => {
     storageService.resetDefaults();
-    setResidents(storageService.getResidents());
+    setResidents(rolloverFluids(storageService.getResidents()));
     setMedications(storageService.getMedications());
     setCareLogs(storageService.getCareLogs());
     setVitals(storageService.getVitals());
     setIncidents(storageService.getIncidents());
     setShifts(storageService.getShifts());
+    setMarRecords(storageService.getMarRecords());
     setSelectedResident(null);
   };
 
@@ -383,6 +463,7 @@ export function App() {
           isOpen={Boolean(selectedResident)}
           onClose={handleCloseResidentProfile}
           medications={medications}
+          marRecords={marRecords}
           careLogs={careLogs}
           vitals={vitals}
           incidents={incidents}
