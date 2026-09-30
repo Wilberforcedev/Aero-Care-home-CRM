@@ -12,6 +12,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { User, Resident } from '../types';
+import { can } from '../services/auth';
 
 interface HeaderProps {
   activeTab: string;
@@ -53,6 +54,11 @@ export const Header: React.FC<HeaderProps> = ({
 
   const { title, desc } = getTabTitle();
 
+  const canVitals = can(currentUser, 'recordVitals');
+  const canNote = can(currentUser, 'writeCareLog');
+  const canIncident = can(currentUser, 'reportIncident');
+  const lockedClass = 'opacity-40 cursor-not-allowed';
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-2xs">
       <div>
@@ -92,8 +98,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onOpenVitalsModal}
-            className="px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border border-emerald-200/70 active:scale-95"
-            title="Record Vitals"
+            disabled={!canVitals}
+            className={`px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border border-emerald-200/70 active:scale-95 ${!canVitals ? lockedClass : ''}`}
+            title={canVitals ? 'Record Vitals' : 'Requires Record Vitals permission'}
           >
             <Activity size={14} />
             <span className="hidden sm:inline">Vitals</span>
@@ -101,8 +108,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onOpenCareNoteModal}
-            className="px-2.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border border-purple-200/70 active:scale-95"
-            title="Add Care Note"
+            disabled={!canNote}
+            className={`px-2.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border border-purple-200/70 active:scale-95 ${!canNote ? lockedClass : ''}`}
+            title={canNote ? 'Add Care Note' : 'Requires Write Care Log permission'}
           >
             <FileText size={14} />
             <span className="hidden sm:inline">Note</span>
@@ -110,8 +118,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onOpenIncidentModal}
-            className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs active:scale-95"
-            title="Report Incident / Fall"
+            disabled={!canIncident}
+            className={`px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs active:scale-95 ${!canIncident ? lockedClass : ''}`}
+            title={canIncident ? 'Report Incident / Fall' : 'Requires Report Incident permission'}
           >
             <AlertTriangle size={14} />
             <span className="hidden sm:inline">Report Incident</span>

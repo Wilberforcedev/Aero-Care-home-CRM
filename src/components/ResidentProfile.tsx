@@ -40,6 +40,7 @@ import {
   MoodType
 } from '../types';
 import { computeNews2 } from '../services/clinical';
+import { can } from '../services/auth';
 
 export interface ResidentProfileProps {
   resident: Resident;
@@ -97,6 +98,10 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const canVitals = can(currentUser, 'recordVitals');
+  const canNote = can(currentUser, 'writeCareLog');
+  const canFluid = can(currentUser, 'logFluid');
 
   const residentMeds = medications.filter(m => m.residentId === resident.id);
   const residentLogs = careLogs.filter(l => l.residentId === resident.id);
@@ -253,19 +258,25 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
             </span>
             <button
               onClick={() => onOpenFluidModal(resident)}
-              className="px-2.5 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors border border-blue-400/30 active:scale-95"
+              disabled={!canFluid}
+              className={`px-2.5 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors border border-blue-400/30 active:scale-95 ${!canFluid ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title={canFluid ? 'Log Fluid' : 'Requires Log Fluid permission'}
             >
               <Droplet size={13} /> Log Fluid
             </button>
             <button
               onClick={() => onOpenVitalsModal(resident)}
-              className="px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors border border-emerald-400/30 active:scale-95"
+              disabled={!canVitals}
+              className={`px-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors border border-emerald-400/30 active:scale-95 ${!canVitals ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title={canVitals ? 'Record Vitals' : 'Requires Record Vitals permission'}
             >
               <Activity size={13} /> Record Vitals
             </button>
             <button
               onClick={() => setActiveTab('notes')}
-              className="px-2.5 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors border border-purple-400/30 active:scale-95"
+              disabled={!canNote}
+              className={`px-2.5 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-xl font-bold flex items-center gap-1.5 transition-colors border border-purple-400/30 active:scale-95 ${!canNote ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title={canNote ? 'Add Note' : 'Requires Write Care Log permission'}
             >
               <Plus size={13} /> Add Note
             </button>
@@ -698,8 +709,9 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
                   </span>
                   <button
                     type="submit"
-                    disabled={isPostingNote || !newNoteContent.trim()}
+                    disabled={isPostingNote || !newNoteContent.trim() || !canNote}
                     className="px-4 py-2 bg-[#042416] hover:bg-[#083a24] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all disabled:opacity-50 active:scale-95"
+                    title={canNote ? 'Save Note' : 'Requires Write Care Log permission'}
                   >
                     <Send size={13} />
                     <span>Save Note</span>
@@ -857,7 +869,9 @@ export const ResidentProfile: React.FC<ResidentProfileProps> = ({
                   <h3 className="font-bold text-xs text-gray-800 uppercase tracking-wider">Recorded Vital Signs History</h3>
                   <button
                     onClick={() => onOpenVitalsModal(resident)}
-                    className="px-3 py-1 bg-[#042416] text-white rounded-lg text-xs font-bold hover:bg-[#083a24] transition-colors flex items-center gap-1"
+                    disabled={!canVitals}
+                    className={`px-3 py-1 bg-[#042416] text-white rounded-lg text-xs font-bold hover:bg-[#083a24] transition-colors flex items-center gap-1 ${!canVitals ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    title={canVitals ? 'Record New Vitals' : 'Requires Record Vitals permission'}
                   >
                     <Plus size={13} /> Record New Vitals
                   </button>

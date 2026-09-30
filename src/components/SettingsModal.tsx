@@ -1,10 +1,13 @@
 import React from 'react';
 import { X, Settings, RotateCcw, ShieldCheck, Database, Sliders } from 'lucide-react';
+import { User } from '../types';
+import { can } from '../services/auth';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onResetData: () => void;
+  currentUser: User;
   profileDisplayMode: 'drawer' | 'modal';
   onToggleProfileDisplayMode: (mode: 'drawer' | 'modal') => void;
 }
@@ -13,10 +16,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   onResetData,
+  currentUser,
   profileDisplayMode,
   onToggleProfileDisplayMode
 }) => {
   if (!isOpen) return null;
+
+  const canManage = can(currentUser, 'manageSettings');
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -92,7 +98,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClose();
                 }
               }}
-              className="w-full py-2.5 bg-gray-100 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-gray-700 font-bold rounded-xl border border-gray-200 transition-colors flex items-center justify-center gap-2"
+              disabled={!canManage}
+              className={`w-full py-2.5 bg-gray-100 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-gray-700 font-bold rounded-xl border border-gray-200 transition-colors flex items-center justify-center gap-2 ${!canManage ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title={canManage ? 'Reset Demo Clinical Records' : 'Requires Manage Settings permission (Manager only)'}
             >
               <RotateCcw size={14} />
               <span>Reset Demo Clinical Records</span>

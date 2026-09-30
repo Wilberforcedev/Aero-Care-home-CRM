@@ -1,43 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Eye, EyeOff, ShieldCheck, UserCheck, HeartPulse, Sparkles, HelpCircle } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, UserCheck, HeartPulse, Sparkles, HelpCircle, AlertCircle } from 'lucide-react';
 import { User } from '../types';
+import { login as authenticate, STAFF_DIRECTORY } from '../services/auth';
 
 interface LoginPageProps {
   onLogin: (user: User) => void;
 }
 
-const PRESET_USERS: User[] = [
-  {
-    id: 'stf-1',
-    name: 'Sarah Jenkins',
-    role: 'Senior Caregiver',
-    email: 's.jenkins@aerocare.com',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
-    shift: 'Morning (07:00-15:00)'
-  },
-  {
-    id: 'stf-2',
-    name: 'Michael Vance',
-    role: 'Registered Nurse',
-    email: 'm.vance@aerocare.com',
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
-    shift: 'Morning (07:00-15:00)'
-  },
-  {
-    id: 'stf-mgr',
-    name: 'Dr. Eleanor Ross',
-    role: 'Manager',
-    email: 'e.ross@aerocare.com',
-    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
-    shift: 'General Duty'
-  }
-];
+// Demo-only credentials so the prototype stays usable. The account directory in
+// services/auth.ts stores only salted hashes — never these plaintext values.
+const DEMO_CREDENTIALS: Record<string, string> = {
+  's.jenkins@aerocare.com': 'Care2024!',
+  'm.vance@aerocare.com': 'Nurse2024!',
+  'e.ross@aerocare.com': 'Mgr2024!'
+};
+
+const PRESET_USERS: User[] = STAFF_DIRECTORY;
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('s.jenkins@aerocare.com');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState(DEMO_CREDENTIALS['s.jenkins@aerocare.com']);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<User>(PRESET_USERS[0]);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -191,15 +177,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const matchedUser = PRESET_USERS.find(u => u.email.toLowerCase() === email.toLowerCase()) || selectedPreset;
-    onLogin(matchedUser);
+    if (isSubmitting) return;
+    setError('');
+    setIsSubmitting(true);
+    const user = await authenticate(email, password);
+    setIsSubmitting(false);
+    if (user) {
+      onLogin(user);
+    } else {
+      setError('Invalid email or password. Please check your staff credentials.');
+    }
   };
 
   const handleSelectPreset = (user: User) => {
     setSelectedPreset(user);
     setEmail(user.email);
+    setPassword(DEMO_CREDENTIALS[user.email] || '');
+    setError('');
   };
 
   return (
@@ -250,7 +246,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             ))}
           </div>
+          <p className="text-[10px] text-gray-500 mt-1.5 px-1 flex items-start gap-1">
+            <Sparkles size={11} className="mt-px shrink-0 text-[#106e4e]" />
+            <span>
+              Tap a role to autofill demo credentials (e.g. {selectedPreset.email} / {DEMO_CREDENTIALS[selectedPreset.email]}).
+            </span>
+          </p>
         </div>
+
+        {error && (
+          <div className="mb-5 flex items-start gap-2 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-xl px-3 py-2.5">
+            <AlertCircle size={15} className="mt-px shrink-0 text-rose-600" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
@@ -272,9 +281,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <label className="block text-sm font-semibold text-gray-700">
                 Password
               </label>
-              <button 
-                type="button" 
-                onClick={() => alert('Demo environment: Simply click "Sign in" to access the Care Home Portal.')}
+              <button
+                type="button"
+                onClick={() => alert('Demo environment: passwords are verified against salted hashes stored in the app. Select a role above to autofill valid demo credentials, or contact the Shift Administrator.')}
                 className="text-xs text-[#106e4e] hover:underline font-semibold"
               >
                 Forgot password?
@@ -299,11 +308,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          <button 
+          <button
             type="submit"
-            className="w-full bg-[#042416] text-white font-bold py-3.5 rounded-xl hover:bg-[#083a24] active:scale-[0.99] transition-all shadow-md text-sm mt-2 flex items-center justify-center gap-2"
+            disabled={isSubmitting}
+            className="w-full bg-[#042416] text-white font-bold py-3.5 rounded-xl hover:bg-[#083a24] active:scale-[0.99] transition-all shadow-md text-sm mt-2 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span>Sign in to Aero Portal</span>
+            {isSubmitting ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Verifying credentials…</span>
+              </>
+            ) : (
+              <span>Sign in to Aero Portal</span>
+            )}
           </button>
         </form>
       </div>

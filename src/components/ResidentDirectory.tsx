@@ -19,10 +19,12 @@ import {
   Sparkles,
   ArrowUpRight
 } from 'lucide-react';
-import { Resident, RiskLevel, ResidentStatus } from '../types';
+import { Resident, RiskLevel, ResidentStatus, User } from '../types';
+import { can } from '../services/auth';
 
 interface ResidentDirectoryProps {
   residents: Resident[];
+  currentUser: User;
   onSelectResident: (resident: Resident) => void;
   onOpenFluidModal: (resident: Resident) => void;
   onOpenVitalsModal: (resident: Resident) => void;
@@ -32,6 +34,7 @@ interface ResidentDirectoryProps {
 
 export const ResidentDirectory: React.FC<ResidentDirectoryProps> = ({
   residents,
+  currentUser,
   onSelectResident,
   onOpenFluidModal,
   onOpenVitalsModal,
@@ -43,6 +46,10 @@ export const ResidentDirectory: React.FC<ResidentDirectoryProps> = ({
   const [selectedRisk, setSelectedRisk] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  const canAdmit = can(currentUser, 'admitResident');
+  const canVitals = can(currentUser, 'recordVitals');
+  const canNote = can(currentUser, 'writeCareLog');
 
   const filteredResidents = useMemo(() => {
     return residents.filter(r => {
@@ -113,7 +120,9 @@ export const ResidentDirectory: React.FC<ResidentDirectoryProps> = ({
           {onNewResidentClick && (
             <button
               onClick={onNewResidentClick}
-              className="px-4 py-2.5 bg-[#042416] hover:bg-[#083a24] text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all active:scale-95"
+              disabled={!canAdmit}
+              className={`px-4 py-2.5 bg-[#042416] hover:bg-[#083a24] text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all active:scale-95 ${!canAdmit ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title={canAdmit ? 'Admit New Resident' : 'Requires Admit Resident permission (Manager only)'}
             >
               <UserPlus size={15} />
               <span>Admit New Resident</span>
@@ -308,15 +317,17 @@ export const ResidentDirectory: React.FC<ResidentDirectoryProps> = ({
                       </button>
                       <button
                         onClick={() => onOpenVitalsModal(resident)}
-                        className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors"
-                        title="Record Vitals"
+                        disabled={!canVitals}
+                        className={`p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors ${!canVitals ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title={canVitals ? 'Record Vitals' : 'Requires Record Vitals permission'}
                       >
                         <Activity size={14} />
                       </button>
                       <button
                         onClick={() => onOpenCareNoteModal(resident)}
-                        className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors"
-                        title="Add Care Note"
+                        disabled={!canNote}
+                        className={`p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors ${!canNote ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title={canNote ? 'Add Care Note' : 'Requires Write Care Log permission'}
                       >
                         <FileText size={14} />
                       </button>

@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Medication, Resident, User } from '../types';
+import { can, eligibleWitnesses } from '../services/auth';
 
 interface MARModuleProps {
   medications: Medication[];
@@ -32,7 +33,10 @@ export const MARModule: React.FC<MARModuleProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [signingMed, setSigningMed] = useState<Medication | null>(null);
   const [signStatus, setSignStatus] = useState<'Given' | 'Refused' | 'Omitted'>('Given');
-  const [witnessName, setWitnessName] = useState('Michael Vance (RN)');
+  const [witnessName, setWitnessName] = useState('');
+
+  const canAdminister = can(currentUser, 'administerMeds');
+  const witnesses = eligibleWitnesses(currentUser.id);
 
   const timeSlots = [
     'All',
@@ -166,11 +170,13 @@ export const MARModule: React.FC<MARModuleProps> = ({
 
                 {med.status === 'Due' ? (
                   <button
-                    onClick={() => { setSigningMed(med); setSignStatus('Given'); }}
-                    className="w-full py-2 bg-[#042416] hover:bg-[#083a24] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+                    onClick={() => { setSigningMed(med); setSignStatus('Given'); setWitnessName(''); }}
+                    disabled={!canAdminister}
+                    className={`w-full py-2 bg-[#042416] hover:bg-[#083a24] text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 ${!canAdminister ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    title={canAdminister ? 'Administer / Sign Off' : 'Requires Administer Meds permission'}
                   >
                     <CheckCircle2 size={14} />
-                    <span>Administer / Sign Off</span>
+                    <span>{canAdminister ? 'Administer / Sign Off' : 'Sign-off Restricted'}</span>
                   </button>
                 ) : (
                   <div className="text-center py-1.5 bg-gray-50 text-gray-500 text-xs font-semibold rounded-xl">
@@ -218,12 +224,24 @@ export const MARModule: React.FC<MARModuleProps> = ({
             {signingMed.controlledDrug && (
               <div className="space-y-1 text-xs">
                 <label className="block text-gray-700 font-bold">Dual Witness Staff (CD Schedule):</label>
-                <input
-                  type="text"
-                  value={witnessName}
-                  onChange={(e) => setWitnessName(e.target.value)}
-                  className="w-full p-2.5 bg-gray-50 border rounded-xl font-medium"
-                />
+                {witnesses.length === 0 ? (
+                  <p className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl font-medium text-amber-900">
+                    No other authorized witness is available on this shift. A Controlled Drug cannot be signed off alone.
+                  </p>
+                ) : (
+                  <select
+                    value={witnessName}
+                    onChange={(e) => setWitnessName(e.target.value)}
+                    className="w-full p-2.5 bg-gray-50 border rounded-xl font-medium"
+                  >
+                    <option value="">Select second authorized staff…</option>
+                    {witnesses.map(w => (
+                      <option key={w.id} value={`${w.name} (${w.role})`}>
+                        {w.name} — {w.role}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
 

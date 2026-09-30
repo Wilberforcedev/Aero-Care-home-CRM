@@ -15,7 +15,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { storageService } from './services/storageService';
 import { uid } from './services/id';
 import { news2Summary } from './services/clinical';
-import { CURRENT_USER } from './data/mockData';
+import { loadSession, persistSession, clearSession } from './services/auth';
 import { 
   Resident, 
   Medication, 
@@ -52,7 +52,7 @@ function rolloverFluids(list: Resident[]): Resident[] {
 }
 
 export function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(CURRENT_USER);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => loadSession());
   const [activeTab, setActiveTab] = useState<string>('residents');
 
   // Application Data States (backed by storageService)
@@ -337,7 +337,7 @@ export function App() {
 
   // If no user is logged in, show the 3D LoginPage
   if (!currentUser) {
-    return <LoginPage onLogin={(user) => setCurrentUser(user)} />;
+    return <LoginPage onLogin={(user) => { persistSession(user); setCurrentUser(user); }} />;
   }
 
   return (
@@ -347,7 +347,7 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentUser={currentUser}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={() => { clearSession(); setCurrentUser(null); }}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
       />
 
@@ -400,6 +400,7 @@ export function App() {
             {activeTab === 'residents' && (
               <ResidentDirectory
                 residents={residents}
+                currentUser={currentUser}
                 onSelectResident={handleSelectResident}
                 onOpenFluidModal={(res) => {
                   setFluidModalResident(res);
@@ -518,6 +519,7 @@ export function App() {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         onResetData={handleResetData}
+        currentUser={currentUser}
         profileDisplayMode={profileDisplayMode}
         onToggleProfileDisplayMode={setProfileDisplayMode}
       />

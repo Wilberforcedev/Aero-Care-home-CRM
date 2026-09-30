@@ -11,6 +11,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { Incident, Resident, User as StaffUser } from '../types';
+import { can } from '../services/auth';
 
 interface IncidentsModuleProps {
   incidents: Incident[];
@@ -28,6 +29,7 @@ export const IncidentsModule: React.FC<IncidentsModuleProps> = ({
   onSelectResident
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const canReport = can(currentUser, 'reportIncident');
 
   // Form State
   const [resId, setResId] = useState(residents[0]?.id || '');
@@ -79,7 +81,9 @@ export const IncidentsModule: React.FC<IncidentsModuleProps> = ({
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs self-start sm:self-auto active:scale-95"
+          disabled={!canReport}
+          className={`px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs self-start sm:self-auto active:scale-95 ${!canReport ? 'opacity-40 cursor-not-allowed' : ''}`}
+          title={canReport ? 'Report Incident / Fall' : 'Requires Report Incident permission'}
         >
           <Plus size={15} />
           <span>Report Incident / Fall</span>

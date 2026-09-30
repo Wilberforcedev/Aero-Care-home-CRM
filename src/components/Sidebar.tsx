@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { User } from '../types';
+import { can } from '../services/auth';
 
 interface SidebarProps {
   activeTab: string;
@@ -53,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
-            {onOpenSettings && (
+            {onOpenSettings && can(currentUser, 'manageSettings') && (
               <button
                 onClick={onOpenSettings}
                 className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
