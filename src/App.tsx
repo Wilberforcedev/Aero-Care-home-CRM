@@ -54,6 +54,7 @@ function rolloverFluids(list: Resident[]): Resident[] {
 export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => loadSession());
   const [activeTab, setActiveTab] = useState<string>('residents');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Application Data States (backed by storageService)
   const [residents, setResidents] = useState<Resident[]>(() => rolloverFluids(storageService.getResidents()));
@@ -341,7 +342,7 @@ export function App() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] text-gray-900 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] min-h-[100svh] overflow-hidden bg-[#f4f7f5] font-sans text-slate-900">
       {/* Primary Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -349,15 +350,18 @@ export function App() {
         currentUser={currentUser}
         onLogout={() => { clearSession(); setCurrentUser(null); }}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
+        mobileOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Content Viewport */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Header */}
         <Header
           activeTab={activeTab}
           currentUser={currentUser}
           residents={residents}
+          onMenuClick={() => setIsSidebarOpen(true)}
           onOpenFluidModal={() => {
             setFluidModalResident(residents[0] || null);
             setIsFluidModalOpen(true);
@@ -375,8 +379,8 @@ export function App() {
         />
 
         {/* Dynamic Main Body with smooth scroll */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 xl:px-8">
+          <div className="mx-auto w-full max-w-[1440px]">
             {activeTab === 'dashboard' && (
               <DashboardView
                 residents={residents}

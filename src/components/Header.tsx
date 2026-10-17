@@ -9,7 +9,8 @@ import {
   Plus, 
   ShieldCheck,
   Calendar,
-  Sparkles
+  Sparkles,
+  Menu
 } from 'lucide-react';
 import { User, Resident } from '../types';
 import { can } from '../services/auth';
@@ -22,6 +23,7 @@ interface HeaderProps {
   onOpenVitalsModal: () => void;
   onOpenCareNoteModal: () => void;
   onOpenIncidentModal: () => void;
+  onMenuClick: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,7 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenFluidModal,
   onOpenVitalsModal,
   onOpenCareNoteModal,
-  onOpenIncidentModal
+  onOpenIncidentModal,
+  onMenuClick
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -42,12 +45,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getTabTitle = () => {
     switch (activeTab) {
-      case 'dashboard': return { title: 'Shift Handover & Operations', desc: 'Active resident observations, MAR drug round status, and critical alerts.' };
-      case 'residents': return { title: 'Resident Care Directory', desc: 'Manage resident demographic records, clinical care plans, and emergency NOK contacts.' };
-      case 'mar': return { title: 'Electronic MAR (eMAR)', desc: 'Controlled administration, dual sign-off, and round adherence tracking.' };
-      case 'logs': return { title: 'Daily Care Logs & Shift Observations', desc: 'Real-time timeline of personal hygiene, nutrition, mobility, and mood notes.' };
-      case 'incidents': return { title: 'Incidents & Safeguarding', desc: 'Accident logging, clinical body mapping, investigation tracking, and CQC compliance.' };
-      case 'roster': return { title: 'Duty Roster & Shift Allocation', desc: 'Wing staff assignments, nurse cover, and attendance monitoring.' };
+      case 'dashboard': return { title: 'Shift overview', desc: 'Resident priorities, medication records and care activity.' };
+      case 'residents': return { title: 'Residents', desc: 'Resident profiles, care plans and important contacts.' };
+      case 'mar': return { title: 'Medication records', desc: 'Scheduled doses, administration records and checks.' };
+      case 'logs': return { title: 'Daily care notes', desc: 'A timeline of personal care, nutrition, mobility and mood.' };
+      case 'incidents': return { title: 'Incidents & safety', desc: 'Record and follow up incidents and safeguarding concerns.' };
+      case 'roster': return { title: 'Staff rota', desc: 'Shift assignments, wing cover and attendance.' };
       default: return { title: 'Aero Care Home CRM', desc: 'Digital care management suite.' };
     }
   };
@@ -60,27 +63,30 @@ export const Header: React.FC<HeaderProps> = ({
   const lockedClass = 'opacity-40 cursor-not-allowed';
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-2xs">
-      <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">{title}</h1>
-        <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+    <header className="z-10 flex shrink-0 flex-col justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <button onClick={onMenuClick} className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 lg:hidden" aria-label="Open navigation"><Menu size={19} /></button>
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">{title}</h1>
+          <p className="mt-0.5 hidden text-xs text-slate-500 sm:block">{desc}</p>
+        </div>
       </div>
 
       {/* Right side status & action buttons */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Live Clock & Shift Badge */}
-        <div className="bg-emerald-50/70 border border-emerald-200/80 px-3 py-1.5 rounded-2xl flex items-center gap-2.5 text-xs">
-          <Clock size={15} className="text-[#106E4E]" />
+        <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs">
+          <Clock size={15} className="text-emerald-700" />
           <div>
-            <div className="font-black text-[#042416]">
+            <div className="font-bold text-slate-800">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
             <div className="text-[10px] text-gray-500 font-medium">
               {currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
             </div>
           </div>
-          <div className="h-6 w-px bg-emerald-200" />
-          <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-100/80 px-2 py-0.5 rounded-full">
+          <div className="h-6 w-px bg-slate-200" />
+          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 ring-1 ring-slate-200">
             {currentUser.shift.split(' ')[0]}
           </span>
         </div>
