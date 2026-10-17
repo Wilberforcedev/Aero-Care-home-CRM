@@ -42,27 +42,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const highRiskResidents = residents.filter(r => r.riskLevel === 'Critical' || r.riskLevel === 'High');
   const medsDue = medications.filter(m => m.status === 'Due');
   const lowFluidResidents = residents.filter(r => (r.todayFluidIntakeMl / r.fluidTargetMl) < 0.5);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const shiftName = currentUser.shift.split(' (')[0];
+  const recentLogs = [...careLogs]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 3);
+  const displayedIncident = incidents.find(incident => incident.status !== 'Resolved & Closed');
 
   return (
     <div className="space-y-6">
-      {/* Morning Shift Handover Summary Banner */}
+      {/* Current shift summary */}
       <div className="bg-gradient-to-r from-[#042416] via-[#083a24] to-[#106e4e] text-white p-6 rounded-3xl shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 text-[10px] font-black uppercase tracking-wider rounded-full">
-                Active Morning Shift Handover
+                {shiftName} Shift Overview
               </span>
               <span className="text-xs text-emerald-100/70">
                 Staff on duty: {currentUser.name} ({currentUser.role})
               </span>
             </div>
             <h2 className="text-2xl font-black tracking-tight text-white">
-              Good morning, {currentUser.name.split(' ')[0]}
+              {greeting}, {currentUser.name.split(' ')[0]}
             </h2>
             <p className="text-xs text-emerald-100/80 max-w-2xl leading-relaxed">
-              All 6 residents accounted for. James Wilson is under 24-hr post-fall observation in Room 102. 
-              Margaret Bennett (Room 301) requires continuous comfort checks and 2-hourly repositioning.
+              {highRiskResidents.length > 0
+                ? `${highRiskResidents.length} resident${highRiskResidents.length === 1 ? '' : 's'} currently have a high or critical risk rating. Review each resident’s recorded care plan and handover notes.`
+                : 'No residents are currently marked high or critical risk in the records. Review handover notes for any other priorities.'}
             </p>
           </div>
 
@@ -72,7 +80,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="px-4 py-2.5 bg-white text-[#042416] hover:bg-emerald-50 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
             >
               <Pill size={15} />
-              <span>Start 08:00 MAR Round ({medsDue.length} due)</span>
+              <span>Review medication round ({medsDue.length} due)</span>
             </button>
             <button
               onClick={() => onNavigateTab('residents')}
@@ -96,7 +104,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Users size={18} className="text-[#106E4E]" />
           </div>
           <p className="text-3xl font-black text-gray-900">{residents.length}</p>
-          <p className="text-[11px] text-emerald-800 font-semibold">All facility beds occupied</p>
+          <p className="text-[11px] text-emerald-800 font-semibold">Residents in current records</p>
         </div>
 
         <div 
@@ -108,7 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <AlertTriangle size={18} className="text-amber-500" />
           </div>
           <p className="text-3xl font-black text-amber-600">{highRiskResidents.length}</p>
-          <p className="text-[11px] text-amber-800 font-semibold">Strict transfer & hoist protocols</p>
+          <p className="text-[11px] text-amber-800 font-semibold">Review recorded risk and care plans</p>
         </div>
 
         <div 
@@ -116,11 +124,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs hover:border-blue-500 cursor-pointer transition-all space-y-1"
         >
           <div className="flex justify-between items-center text-gray-400">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Morning Meds Due</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Medication Records Due</span>
             <Pill size={18} className="text-blue-600" />
           </div>
           <p className="text-3xl font-black text-blue-600">{medsDue.length}</p>
-          <p className="text-[11px] text-blue-800 font-semibold">Morning 08:00 round active</p>
+          <p className="text-[11px] text-blue-800 font-semibold">Check scheduled times in eMAR</p>
         </div>
 
         <div 
@@ -153,7 +161,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 onClick={() => onNavigateTab('residents')}
                 className="text-xs font-bold text-[#106E4E] hover:underline flex items-center gap-1"
               >
-                <span>View All 6</span>
+                <span>View All {residents.length}</span>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -232,7 +240,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="space-y-2.5">
-              {careLogs.slice(0, 3).map(log => (
+              {recentLogs.map(log => (
                 <div key={log.id} className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 text-xs space-y-1.5">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-[#042416] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/70">
@@ -246,6 +254,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <p className="text-[10px] text-gray-400 pt-0.5">By {log.staffName} ({log.staffRole})</p>
                 </div>
               ))}
+              {recentLogs.length === 0 && (
+                <p className="rounded-xl border border-dashed border-gray-200 p-5 text-center text-xs text-gray-500">
+                  No care observations have been recorded yet.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -258,19 +271,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <AlertTriangle size={18} className="text-rose-600" />
               <h3 className="text-xs font-black uppercase tracking-wider">Safeguarding & Incident Watch</h3>
             </div>
-            {incidents.length > 0 && (
+            {displayedIncident && (
               <div className="bg-white p-3.5 rounded-2xl border border-rose-200 space-y-1.5 text-xs">
                 <div className="flex justify-between">
-                  <span className="font-bold text-rose-700">{incidents[0].residentName} (Rm {incidents[0].room})</span>
+                  <span className="font-bold text-rose-700">{displayedIncident.residentName} (Rm {displayedIncident.room})</span>
                   <span className="text-[10px] font-bold text-rose-900 bg-rose-100 px-1.5 py-0.5 rounded">
-                    {incidents[0].type}
+                    {displayedIncident.type}
                   </span>
                 </div>
-                <p className="text-gray-700 text-[11px]">{incidents[0].description}</p>
+                <p className="text-gray-700 text-[11px]">{displayedIncident.description}</p>
                 <p className="text-[10px] text-gray-500 font-semibold pt-1">
-                  Status: <strong className="text-amber-800">{incidents[0].status}</strong>
+                  Status: <strong className="text-amber-800">{displayedIncident.status}</strong>
                 </p>
               </div>
+            )}
+            {!displayedIncident && (
+              <p className="rounded-2xl border border-rose-200 bg-white p-3.5 text-xs text-gray-600">
+                No open incidents are recorded in the current demo data.
+              </p>
             )}
             <button
               onClick={() => onNavigateTab('incidents')}
